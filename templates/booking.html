@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Tour</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600');
+            background-size: cover; background-position: center;
+            background-repeat: no-repeat; background-attachment: fixed;
+            min-height: 100vh;
+        }
+        .booking-card { background: rgba(255,255,255,0.97); border-radius: 16px; }
+
+        /* ── Seat map ────────────────────────────────────────── */
+        .bus-wrap {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 8px;
+        }
+        .bus-roof {
+            background: #16213e;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+            padding: 8px;
+            color: #ffc107;
+            font-weight: 700;
+            letter-spacing: 2px;
+            font-size: 13px;
+        }
+        .bus-body {
+            background: #0f3460;
+            border-radius: 0 0 12px 12px;
+            padding: 16px 20px 20px;
+        }
+        .driver-area {
+            display: flex; align-items: center; justify-content: flex-end;
+            border-bottom: 2px dashed #ffffff30;
+            padding-bottom: 12px; margin-bottom: 16px;
+            color: #adb5bd; font-size: 13px;
+        }
+        .driver-icon {
+            width: 40px; height: 40px;
+            background: #ffc107; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; margin-left: 8px;
+        }
+        .seat-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .row-label {
+            color: #adb5bd; font-size: 11px; font-weight: 600;
+            width: 44px; text-align: right; flex-shrink: 0;
+        }
+        .aisle { width: 28px; flex-shrink: 0; }
+
+        /* individual seat button */
+        .seat {
+            width: 44px; height: 44px;
+            border-radius: 8px 8px 4px 4px;
+            border: 2px solid;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px;
+            cursor: pointer;
+            transition: transform 0.12s ease, filter 0.12s ease;
+            position: relative; user-select: none; flex-shrink: 0;
+        }
+        .seat::after {            /* headrest nub */
+            content: '';
+            position: absolute; bottom: -6px;
+            width: 70%; height: 5px;
+            border-radius: 0 0 4px 4px;
+            background: inherit; filter: brightness(0.7);
+        }
+        .seat-front   { background: #fff3e0; border-color: #fd7e14; color: #fd7e14; }
+        .seat-window  { background: #e8f4fd; border-color: #0d6efd; color: #0d6efd; }
+        .seat-middle  { background: #e9f7ef; border-color: #198754; color: #198754; }
+        .seat-back    { background: #f3e8ff; border-color: #6f42c1; color: #6f42c1; }
+        .seat-taken   { background: #e9ecef; border-color: #adb5bd; color: #adb5bd; cursor: not-allowed; opacity: 0.6; }
+        .seat-selected { background: #ffc107 !important; border-color: #fd7e14 !important; color: #000 !important; transform: scale(1.08); }
+        .seat:not(.seat-taken):not(.seat-selected):hover { transform: scale(1.1); filter: brightness(0.92); }
+
+        /* legend */
+        .legend-dot {
+            width: 14px; height: 14px;
+            border-radius: 3px; display: inline-block;
+        }
+
+        /* selected summary bar */
+        .selection-bar {
+            background: #212529; border-radius: 10px;
+            padding: 10px 16px; color: #fff;
+            font-size: 13px; margin-top: 14px;
+            min-height: 40px;
+        }
+        .selection-bar .seats-list { color: #ffc107; font-weight: 700; }
+
+        .btn-success { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(25,135,84,.35); }
+    </style>
+</head>
+
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/home/">Travel &amp; Tour Booking System</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="/home/">Home</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/booking/">Book Tour</a></li>
+                <li class="nav-item"><a class="nav-link" href="/booking-history/">Booking History</a></li>
+                <li class="nav-item"><a class="nav-link text-warning" href="/logout/">Logout</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+{% if messages %}
+<div class="container mt-3">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} text-center shadow">{{ message }}</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="container py-4">
+<div class="row justify-content-center">
+<div class="col-md-10 col-lg-8">
+
+<form method="POST" class="p-4 shadow-lg booking-card" id="booking-form">
+{% csrf_token %}
+
+<h2 class="text-center mb-4 fw-bold">Tour Booking Form</h2>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Full Name</label>
+        <input type="text" name="name" class="form-control" placeholder="Enter Your Name" required>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Email Address</label>
+        <input type="email" name="email" id="id-email" class="form-control" placeholder="name@example.com" required>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Tour Package</label>
+        <select name="package" id="id-package" class="form-select" required>
+            <option value="" selected disabled>Select Package</option>
+            {% for package in packages %}
+            <option value="{{ package.title }}">{{ package.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Travel Date</label>
+        <input type="date" name="travel_date" id="id-travel-date" class="form-control" required>
+    </div>
+</div>
+
+<!-- Hidden fields populated by JS -->
+<input type="hidden" name="seat_numbers" id="id-seat-numbers" value="">
+<input type="hidden" name="persons" id="id-persons" value="0">
+
+<!-- ── SEAT MAP ─────────────────────────────────────────────── -->
+<div id="seat-map-section" class="mt-4" style="display:none;">
+
+    <div class="d-flex align-items-center mb-2">
+        <h5 class="fw-bold mb-0">Select Your Seat(s)</h5>
+        <span class="ms-2 text-muted" style="font-size:13px;">(click to select, click again to deselect)</span>
+    </div>
+
+    <!-- Legend -->
+    <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:13px;">
+        <span><span class="legend-dot" style="background:#fff3e0;border:2px solid #fd7e14;"></span> Front (4 seats)</span>
+        <span><span class="legend-dot" style="background:#e8f4fd;border:2px solid #0d6efd;"></span> Window (6 seats)</span>
+        <span><span class="legend-dot" style="background:#e9f7ef;border:2px solid #198754;"></span> Middle (6 seats)</span>
+        <span><span class="legend-dot" style="background:#f3e8ff;border:2px solid #6f42c1;"></span> Back (4 seats)</span>
+        <span><span class="legend-dot" style="background:#e9ecef;border:2px solid #adb5bd;"></span> Booked</span>
+        <span><span class="legend-dot" style="background:#ffc107;border:2px solid #fd7e14;"></span> Your Selection</span>
+    </div>
+
+    <!-- Bus visual -->
+    <div class="bus-wrap">
+        <div class="bus-roof">✈ &nbsp; TOUR BUS — 20 SEATS &nbsp; ✈</div>
+        <div class="bus-body">
+            <div class="driver-area">
+                Driver &nbsp;
+                <div class="driver-icon">🧑</div>
+            </div>
+            <div id="seat-grid">
+                <!-- Rendered by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Selection summary -->
+    <div class="selection-bar" id="selection-bar">
+        <span id="selection-text" class="text-secondary">
+            No seats selected — click a seat above to choose.
+        </span>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="seat-loading" class="text-center text-muted mt-2" style="display:none; font-size:13px;">
+        ⏳ Loading seat availability…
+    </div>
+
+</div>
+<!-- ── END SEAT MAP ─────────────────────────────────────────── -->
+
+<button type="submit" id="submit-btn" class="btn btn-success w-100 py-2 mt-4" disabled>
+    Select seats to continue →
+</button>
+
+</form>
+
+</div>
+</div>
+</div>
+
+<script>
+// ── Seat layout definition ──────────────────────────────────────
+const SEAT_LAYOUT = [
+    // [num, type, row, col]   col: 0=leftWin, 1=leftMid, 2=rightMid, 3=rightWin
+    [1,'Front',1,0],[2,'Front',1,1],[3,'Front',1,2],[4,'Front',1,3],
+    [5,'Window',2,0],[6,'Middle',2,1],[7,'Middle',2,2],[8,'Window',2,3],
+    [9,'Window',3,0],[10,'Middle',3,1],[11,'Middle',3,2],[12,'Window',3,3],
+    [13,'Window',4,0],[14,'Middle',4,1],[15,'Middle',4,2],[16,'Window',4,3],
+    [17,'Back',5,0],[18,'Back',5,1],[19,'Back',5,2],[20,'Back',5,3],
+];
+
+const TYPE_CLASS = {
+    Front:'seat-front', Window:'seat-window', Middle:'seat-middle', Back:'seat-back'
+};
+const ROW_LABEL = { 1:'FRONT', 2:'Row 2', 3:'Row 3', 4:'Row 4', 5:'BACK' };
+
+let takenSeats   = new Set();
+let selectedSeats = new Set();
+
+// Group layout by row
+const ROWS = {};
+SEAT_LAYOUT.forEach(([num, type, row, col]) => {
+    if (!ROWS[row]) ROWS[row] = [];
+    ROWS[row].push({num, type, col});
+});
+
+function renderSeatMap() {
+    const grid = document.getElementById('seat-grid');
+    grid.innerHTML = '';
+
+    [1,2,3,4,5].forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'seat-row';
+
+        // Row label
+        const lbl = document.createElement('span');
+        lbl.className = 'row-label';
+        lbl.textContent = ROW_LABEL[row];
+        rowDiv.appendChild(lbl);
+
+        ROWS[row].sort((a,b)=>a.col-b.col).forEach(({num, type, col}) => {
+            if (col === 2) {
+                const aisle = document.createElement('div');
+                aisle.className = 'aisle';
+                rowDiv.appendChild(aisle);
+            }
+
+            const s = document.createElement('div');
+            s.className = 'seat';
+            s.textContent = num;
+            s.title = `Seat ${num} — ${type} Seat`;
+
+            if (takenSeats.has(num)) {
+                s.classList.add('seat-taken');
+                s.title += ' (Booked)';
+            } else if (selectedSeats.has(num)) {
+                s.classList.add('seat-selected');
+                s.onclick = () => toggleSeat(num);
+            } else {
+                s.classList.add(TYPE_CLASS[type]);
+                s.onclick = () => toggleSeat(num);
+            }
+            rowDiv.appendChild(s);
+        });
+
+        grid.appendChild(rowDiv);
+    });
+}
+
+function toggleSeat(num) {
+    if (takenSeats.has(num)) return;
+    if (selectedSeats.has(num)) {
+        selectedSeats.delete(num);
+    } else {
+        selectedSeats.add(num);
+    }
+    updateForm();
+    renderSeatMap();
+}
+
+function updateForm() {
+    const arr = Array.from(selectedSeats).sort((a,b)=>a-b);
+    document.getElementById('id-seat-numbers').value = arr.join(', ');
+    document.getElementById('id-persons').value = arr.length;
+
+    const btn = document.getElementById('submit-btn');
+    const txt = document.getElementById('selection-text');
+
+    if (arr.length > 0) {
+        const types = arr.map(n => {
+            const entry = SEAT_LAYOUT.find(e => e[0]===n);
+            return entry ? entry[1] : '';
+        });
+        const typeStr = [...new Set(types)].join(' & ');
+        txt.innerHTML = `<span class="seats-list">✓ ${arr.length} seat(s) selected: No. ${arr.join(', ')}</span>`
+                      + `<span class="ms-2 text-secondary small">(${typeStr})</span>`;
+        btn.disabled = false;
+        btn.textContent = `Book ${arr.length} Seat(s) — No. ${arr.join(', ')} →`;
+    } else {
+        txt.innerHTML = '<span class="text-secondary">No seats selected — click a seat above to choose.</span>';
+        btn.disabled = true;
+        btn.textContent = 'Select seats to continue →';
+    }
+}
+
+async function fetchAvailability() {
+    const dateVal = document.getElementById('id-travel-date').value;
+    const pkgVal  = document.getElementById('id-package').value;
+
+    if (!dateVal || !pkgVal) {
+        document.getElementById('seat-map-section').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('seat-loading').style.display = 'block';
+    document.getElementById('seat-map-section').style.display = 'block';
+    selectedSeats.clear();
+
+    try {
+        const url = `/seat-availability/?date=${encodeURIComponent(dateVal)}&package=${encodeURIComponent(pkgVal)}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        takenSeats = new Set(data.taken.map(Number));
+    } catch(e) {
+        takenSeats = new Set();
+    }
+
+    document.getElementById('seat-loading').style.display = 'none';
+    updateForm();
+    renderSeatMap();
+}
+
+// Trigger availability fetch when date OR package changes
+document.getElementById('id-travel-date').addEventListener('change', fetchAvailability);
+document.getElementById('id-package').addEventListener('change', fetchAvailability);
+
+// Guard: prevent submit with 0 seats
+document.getElementById('booking-form').addEventListener('submit', function(e) {
+    const seats = document.getElementById('id-seat-numbers').value.trim();
+    if (!seats) {
+        e.preventDefault();
+        alert('Please select at least one seat from the seat map.');
+    }
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
